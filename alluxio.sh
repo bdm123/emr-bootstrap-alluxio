@@ -14,44 +14,20 @@ sudo chmod 755 /usr/local/bin/jq
 ismaster=`cat /mnt/var/lib/info/instance.json | jq -r '.isMaster'`
 masterdns=`cat /mnt/var/lib/info/job-flow.json | jq -r '.masterPrivateDnsName'`
 
-cd /opt
+cd /usr/local
 
 # Download alluxio
-sudo wget http://alluxio.org/downloads/files/${version}/alluxio-${version}-hadoop-2.7-bin.tar.gz
-sudo tar -zxf alluxio-${version}-hadoop-2.7-bin.tar.gz
-sudo chown -R root:root alluxio-${version}-hadoop-2.7
+sudo wget http://alluxio.org/downloads/files/${version}/alluxio-${version}-hadoop-2.7-bin.tar.gz -P /tmp
+sudo tar -zxf /tmp/alluxio-${version}-hadoop-2.7-bin.tar.gz
+sudo mv alluxio-* alluxio
+sudo chown -R hadoop:hadoop alluxio
 
 # Download client
 #sudo wget http://downloads.alluxio.org/downloads/files/${version}/alluxio-core-client-spark-${version}-jar-with-dependencies.jar
 
-cd alluxio-${version}-hadoop-2.7
-
-if [[ ${ismaster} == "true" ]]; then
-  [[ ${masterdns} == "localhost" ]] && masterdns=`hostname -f`
-  # bootstrap
-  ./bin/alluxio bootstrapConf ${masterdns}
-
-  # initialize
-  initializeAlluxio
- 
-  # Format
-  ./bin/alluxio format
-  # Start master
-  ./bin/alluxio-start.sh master
-else
-  # bootstrap
-  ./bin/alluxio bootstrapConf ${masterdns}  
-
-  # initialize
-  initializeAlluxio
-
-  # Format
-  ./bin/alluxio format
-  # Start worker
-  ./bin/alluxio-start.sh worker SudoMount
-fi
-
-initializeAlluxio() {
+initialize_alluxio () {
+  cd /usr/local/alluxio
+  sudo chown -R hadoop:hadoop .
   # config
   sed -i '/ALLUXIO_WORKER_MEMORY_SIZE/d' ./conf/alluxio-env.sh
   echo "ALLUXIO_WORKER_MEMORY_SIZE=${memory_size}" >> ./conf/alluxio-env.sh
@@ -62,3 +38,32 @@ initializeAlluxio() {
   echo "alluxio.user.block.size.bytes.default=128MB" >> ./conf/alluxio-site.properties
 
 }
+
+cd /usr/local/alluxio
+
+if [[ ${ismaster} == "true" ]]; then
+  [[ ${masterdns} == "localhost" ]] && masterdns=`hostname -f`
+  # bootstrap
+  sudo ./bin/alluxio bootstrapConf ${masterdns}
+
+  # initialize
+  initialize_alluxio
+ 
+  # Format
+  sudo ./bin/alluxio format
+  # Start master
+  sudo ./bin/alluxio-start.sh master
+else
+  # bootstrap
+  sudo ./bin/alluxio bootstrapConf ${masterdns}  
+
+  # initialize
+  initialize_alluxio
+
+  # Format
+  sudo ./bin/alluxio format
+  # Start worker
+  sudo ./bin/alluxio-start.sh worker SudoMount
+fi
+
+
