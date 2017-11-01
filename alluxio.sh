@@ -1,7 +1,11 @@
 #!/bin/bash
 
 version=$1
-[[ -z $version ]] && version=1.2.0
+memory_size=$2
+s3_bucket_name=$3
+[[ -z $version ]] && version=1.6.0
+[[ -z $memory_size ]] && memory_size=2GB
+
 
 # prepare
 sudo wget https://github.com/stedolan/jq/releases/download/jq-1.5/jq-linux64 -O /usr/local/bin/jq
@@ -13,26 +17,48 @@ masterdns=`cat /mnt/var/lib/info/job-flow.json | jq -r '.masterPrivateDnsName'`
 cd /opt
 
 # Download alluxio
-sudo wget http://alluxio.org/downloads/files/${version}/alluxio-${version}-bin.tar.gz
-sudo tar -zxf alluxio-${version}-bin.tar.gz
-sudo chown -R root:root alluxio-${version} 
+sudo wget http://alluxio.org/downloads/files/${version}/alluxio-${version}-hadoop-2.7-bin.tar.gz
+sudo tar -zxf alluxio-${version}-hadoop-2.7-bin.tar.gz
+sudo chown -R root:root alluxio-${version}-hadoop-2.7
 
 # Download client
-sudo wget http://downloads.alluxio.org/downloads/files/${version}/alluxio-core-client-spark-${version}-jar-with-dependencies.jar
+#sudo wget http://downloads.alluxio.org/downloads/files/${version}/alluxio-core-client-spark-${version}-jar-with-dependencies.jar
 
-cd alluxio-${version}
+cd alluxio-${version}-hadoop-2.7
 
 if [[ ${ismaster} == "true" ]]; then
   [[ ${masterdns} == "localhost" ]] && masterdns=`hostname -f`
   # bootstrap
-  sudo ./bin/alluxio bootstrapConf ${masterdns}
+  ./bin/alluxio bootstrapConf ${masterdns}
+
+  # initialize
+  initializeAlluxio
+ 
   # Format
-  sudo ./bin/alluxio format
+  ./bin/alluxio format
   # Start master
-  sudo ./bin/alluxio-start.sh master
+  ./bin/alluxio-start.sh master
 else
   # bootstrap
-  sudo ./bin/alluxio bootstrapConf ${masterdns}  
+  ./bin/alluxio bootstrapConf ${masterdns}  
+
+  # initialize
+  initializeAlluxio
+
+  # Format
+  ./bin/alluxio format
   # Start worker
-  sudo ./bin/alluxio-start.sh worker Mount
+  ./bin/alluxio-start.sh worker SudoMount
 fi
+
+initializeAlluxio() {
+  # config
+  sed -i '/ALLUXIO_WORKER_MEMORY_SIZE/d' ./conf/alluxio-env.sh
+  echo "ALLUXIO_WORKER_MEMORY_SIZE=${memory_size}" >> ./conf/alluxio-env.sh
+  echo "ALLUXIO_UNDERFS_ADDRESS=\"s3a://${s3_bucket_name}\"" >> ./conf/alluxio-env.sh
+  
+  cp conf/alluxio-site.properties.template conf/alluxio-site.properties
+  echo "alluxio.security.authorization.permission.enabled=false" >> ./conf/alluxio-site.properties
+  echo "alluxio.user.block.size.bytes.default=128MB" >> ./conf/alluxio-site.properties
+
+}

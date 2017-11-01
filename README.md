@@ -8,7 +8,8 @@ alluxio - emr bootstrap action scripts
   {
     "Classification": "core-site",
     "Properties": {
-      "fs.alluxio.impl": "alluxio.hadoop.FileSystem"
+      "fs.alluxio.impl": "alluxio.hadoop.FileSystem",
+      "fs.alluxio-ft.impl": "alluxio.hadoop.FaultTolerantFileSystem"
     }
   },
   {
