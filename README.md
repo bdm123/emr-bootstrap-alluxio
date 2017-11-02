@@ -17,6 +17,8 @@ aws emr create-cluster --name "Alluxio Cluster" --release-label emr-5.7.0
 After the cluster is in "Waiting" status, open web browser at:
 http://<public_dns_of_master>:19999 , you will see the alluxio cluster is ready.
 
+If you scale out the cluster, alluxio will expand as well.
+
 # emr cluster conf
 
 ```
